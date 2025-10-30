@@ -1,78 +1,128 @@
-package com.delivery_api.Projeto.Delivery.API.service;
+package com.delivery_api.Projeto.delivery.API.service;
 
-import com.delivery_api.Projeto.Delivery.API.entity.Cliente;
-import com.delivery_api.Projeto.Delivery.API.repository.ClienteRepository;
+import com.delivery_api.Projeto.delivery.API.entity.Cliente;
+import com.delivery_api.Projeto.delivery.API.repository.ClienteRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
+import javax.swing.text.html.Option;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@Service // Indica que esta classe é um serviço do Spring
-public class ClienteService {
+@Service
+@Transactional
 
-    @Autowired // Injeta automaticamente o ClienteRepository
+public class ClienteService {
+    @Autowired
     private ClienteRepository clienteRepository;
 
-    // Cadastrar um novo cliente
+    /**
+     * Cadastrar novo cliente
+     */
     public Cliente cadastrar(Cliente cliente) {
-        // Validação simples: não permitir e-mail vazio
-        if (cliente.getEmail() == null || cliente.getEmail().isEmpty()) {
-            throw new IllegalArgumentException("O e-mail do cliente é obrigatório");
+        // Validar email único
+        if (clienteRepository.existsByEmail(cliente.getEmail())) {
+            throw new IllegalArgumentException("Email já cadastrado: " + cliente.getEmail());
         }
 
-        // Verificar se o e-mail já existe
-        Optional<Cliente> existente = clienteRepository.findAll()
-                .stream()
-                .filter(c -> c.getEmail().equalsIgnoreCase(cliente.getEmail()))
-                .findFirst();
-        if (existente.isPresent()) {
-            throw new IllegalArgumentException("Já existe um cliente com esse e-mail");
-        }
+        // Validações de negócio
+        validarDadosCliente(cliente);
+
+        // Definir como ativo por padrão
+        cliente.setAtivo(true);
 
         return clienteRepository.save(cliente);
     }
 
-    // Buscar cliente por ID
+    /**
+     * Buscar cliente por ID
+     */
+    @Transactional(readOnly = true)
     public Optional<Cliente> buscarPorId(Long id) {
         return clienteRepository.findById(id);
     }
 
-    // Buscar cliente por e-mail
+    /**
+     * Buscar cliente por email
+     */
+    @Transactional(readOnly = true)
     public Optional<Cliente> buscarPorEmail(String email) {
-        return clienteRepository.findAll()
-                .stream()
-                .filter(c -> c.getEmail().equalsIgnoreCase(email))
-                .findFirst();
+        return clienteRepository.findByEmail(email);
     }
 
-    // Listar todos os clientes
-    public List<Cliente> listarTodos() {
-        return clienteRepository.findAll();
+    /**
+     * Listar todos os clientes ativos
+     */
+    @Transactional(readOnly = true)
+    public List<Cliente> listarAtivos() {
+        return clienteRepository.findByAtivoTrue();
     }
 
-    // Atualizar cliente
+    /**
+     * Atualizar dados do cliente
+     */
     public Cliente atualizar(Long id, Cliente clienteAtualizado) {
-        Optional<Cliente> existente = clienteRepository.findById(id);
-        if (!existente.isPresent()) {
-            throw new IllegalArgumentException("Cliente não encontrado com ID: " + id);
+        Cliente cliente = buscarPorId(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado: " + id));
+
+        // Verificar se email não está sendo usado por outro cliente
+        if (!cliente.getEmail().equals(clienteAtualizado.getEmail()) &&
+                clienteRepository.existsByEmail(clienteAtualizado.getEmail())) {
+            throw new IllegalArgumentException("Email já cadastrado: " + clienteAtualizado.getEmail());
         }
 
-        Cliente cliente = existente.get();
-        cliente.setNome(clienteAtualizado.getNome() != null ? clienteAtualizado.getNome() : cliente.getNome());
-        cliente.setEmail(clienteAtualizado.getEmail() != null ? clienteAtualizado.getEmail() : cliente.getEmail());
-        cliente.setTelefone(clienteAtualizado.getTelefone() != null ? clienteAtualizado.getTelefone() : cliente.getTelefone());
+        // Atualizar campos
+        cliente.setNome(clienteAtualizado.getNome());
+        cliente.setEmail(clienteAtualizado.getEmail());
+        cliente.setTelefone(clienteAtualizado.getTelefone());
+        cliente.setEndereco(clienteAtualizado.getEndereco());
 
         return clienteRepository.save(cliente);
     }
 
-    // Deletar cliente
-    public boolean deletar(Long id) {
-        Optional<Cliente> existente = clienteRepository.findById(id);
-        if (existente.isPresent()) {
-            clienteRepository.deleteById(id);
-            return true;
-        }
-        return false;
+    /**
+     * Inativar cliente (soft delete)
+     */
+    public void inativar(Long id) {
+        Cliente cliente = buscarPorId(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado: " + id));
+
+        cliente.inativar();
+        clienteRepository.save(cliente);
     }
+
+    /**
+     * Buscar clientes por nome
+     */
+    @Transactional(readOnly = true)
+    public List<Cliente> buscarPorNome(String nome) {
+        return clienteRepository.findByNomeContainingIgnoreCase(nome);
+    }
+
+    /**
+     * Validações de negócio
+     */
+    private void validarDadosCliente(Cliente cliente) {
+        if (cliente.getNome() == null || cliente.getNome().trim().isEmpty()) {
+            throw new IllegalArgumentException("Nome é obrigatório");
+        }
+
+        if (cliente.getEmail() == null || cliente.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email é obrigatório");
+        }
+
+        if (cliente.getNome().length() < 2) {
+            throw new IllegalArgumentException("Nome deve ter pelo menos 2 caracteres");
+        }
+    }
+
+
 }
