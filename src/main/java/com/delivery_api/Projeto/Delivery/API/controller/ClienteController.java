@@ -1,7 +1,8 @@
-package com.delivery_api.Projeto.Delivery.API.controller;
+package com.delivery_api.Projeto.delivery.API.controller;
 
-import com.delivery_api.Projeto.Delivery.API.entity.Cliente;
-import com.delivery_api.Projeto.Delivery.API.service.ClienteService;
+import com.delivery_api.Projeto.delivery.API.entity.Cliente;
+import com.delivery_api.Projeto.delivery.API.repository.ClienteRepository;
+import com.delivery_api.Projeto.delivery.API.service.ClienteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,15 +12,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
-@RestController // Indica que essa classe é um controlador REST
-@RequestMapping("/clientes") // Define o endpoint base da rota
-@CrossOrigin(origins = "*") // Permite requisições de qualquer origem
-public class ClienteController {
+@RestController
+@RequestMapping ("./clientes")
+@CrossOrigin (origins = "*")
 
+public class ClienteController {
     @Autowired
     private ClienteService clienteService;
 
-    // Cadastrar novo cliente
+    /**
+     * Cadastrar novo cliente
+     */
     @PostMapping
     public ResponseEntity<?> cadastrar(@Validated @RequestBody Cliente cliente) {
         try {
@@ -29,73 +32,86 @@ public class ClienteController {
             return ResponseEntity.badRequest().body("Erro: " + e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro interno do servidor: " + e.getMessage());
+                    .body("Erro interno do servidor");
         }
     }
 
-    // Buscar cliente por ID
-    @GetMapping("/{id}")
-    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
-        Optional<Cliente> cliente = clienteService.buscarPorId(id);
-        if (cliente.isPresent()) {
-            return ResponseEntity.ok(cliente.get());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Cliente não encontrado com ID: " + id);
-        }
-    }
-
-    // Buscar cliente por e-mail
-    @GetMapping("/email/{email}")
-    public ResponseEntity<?> buscarPorEmail(@PathVariable String email) {
-        Optional<Cliente> cliente = clienteService.buscarPorEmail(email);
-        return cliente.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("Cliente não encontrado com e-mail: " + email));
-    }
-
-    // Listar todos os clientes
+    /**
+     * Listar todos os clientes ativos
+     */
     @GetMapping
-    public ResponseEntity<?> listarTodos() {
-        List<Cliente> clientes = clienteService.listarTodos();
-        if (clientes.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("Nenhum cliente encontrado.");
-        }
+    public ResponseEntity<List<Cliente>> listar() {
+        List<Cliente> clientes = clienteService.listarAtivos();
         return ResponseEntity.ok(clientes);
     }
 
-    // Atualizar cliente
+    /**
+     * Buscar cliente por ID
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<?> buscarPorId(@PathVariable Long id) {
+        Optional<Cliente> cliente = clienteService.buscarPorId(id);
+
+        if (cliente.isPresent()) {
+            return ResponseEntity.ok(cliente.get());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Atualizar cliente
+     */
     @PutMapping("/{id}")
-    public ResponseEntity<?> atualizar(@PathVariable Long id, @RequestBody Cliente clienteAtualizado) {
+    public ResponseEntity<?> atualizar(@PathVariable Long id,
+                                       @Validated @RequestBody Cliente cliente) {
         try {
-            Cliente cliente = clienteService.atualizar(id, clienteAtualizado);
-            return ResponseEntity.ok(cliente);
+            Cliente clienteAtualizado = clienteService.atualizar(id, cliente);
+            return ResponseEntity.ok(clienteAtualizado);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Erro: " + e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro interno do servidor: " + e.getMessage());
+                    .body("Erro interno do servidor");
         }
     }
 
-    // Deletar cliente por ID
+    /**
+     * Inativar cliente (soft delete)
+     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletar(@PathVariable Long id) {
+    public ResponseEntity<?> inativar(@PathVariable Long id) {
         try {
-            boolean removido = clienteService.deletar(id);
-            if (removido) {
-                return ResponseEntity.ok("Cliente removido com sucesso!");
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Cliente não encontrado com ID: " + id);
-            }
+            clienteService.inativar(id);
+            return ResponseEntity.ok().body("Cliente inativado com sucesso");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Erro: " + e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao deletar cliente: " + e.getMessage());
+                    .body("Erro interno do servidor");
         }
     }
 
-    // Endpoint para verificar se a API está respondendo
-    @GetMapping("/status")
-    public ResponseEntity<?> status() {
-        return ResponseEntity.ok("✅ ClienteController ativo e funcionando!");
+    /**
+     * Buscar clientes por nome
+     */
+    @GetMapping("/buscar")
+    public ResponseEntity<List<Cliente>> buscarPorNome(@RequestParam String nome) {
+        List<Cliente> clientes = clienteService.buscarPorNome(nome);
+        return ResponseEntity.ok(clientes);
+    }
+
+    /**
+     * Buscar cliente por email
+     */
+    @GetMapping("/email/{email}")
+    public ResponseEntity<?> buscarPorEmail(@PathVariable String email) {
+        Optional<Cliente> cliente = clienteService.buscarPorEmail(email);
+
+        if (cliente.isPresent()) {
+            return ResponseEntity.ok(cliente.get());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
