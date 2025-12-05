@@ -33,5 +33,5 @@ Sistema de delivery desenvolvido com Spring Boot e Java 21.
 - Profile: development
 
 ## 👨‍💻 Desenvolvedor
-LUIZ ARTHUR DOS SANTOS - RA:325123302 - CURSO: ANALISE E DESENVOLVIMENTO DE SISTEMAS(SEMIPRESENCIAL) - TURNO: NOITE  
+[Seu Nome] - [Sua Turma]  
 Desenvolvido com JDK 21 e Spring Boot 3.2.x
